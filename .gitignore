@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+*.tif
+*.xml
+*.bak
+*.ini
+outdir/.DS_Store
+outdir/crops/hsi/.DS_Store
+*.csv
