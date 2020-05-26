@@ -54,11 +54,11 @@ def categorical_encoder(cats,y, tr_lb):
     
 siteID =  None #"D01"
 dim_red = None #"pca"
-max_threshold = 300
-too_rare = True
+max_threshold = 250
+too_rare = False
 
 
-data = pd.read_csv("./weak_label/indir/csv/brdf_hkl6_reflectance.csv")
+data = pd.read_csv("./weak_label/indir/csv/brdf_hist_6min.csv")
 #data = pd.read_csv("./weak_label/indir/csv/old_dataset.csv") 
 #data = pd.read_csv("./weak_label/indir/csv/bf2_top_reflectance.csv")
 
@@ -113,7 +113,7 @@ y_test =  data[['individualID','taxonID']][~train]
 
 y = data[['taxonID']]
 
-#encode categorical values using an LOO and associating only 1 value to each
+#encode categorical values using an LOO-Encoder and associating only 1 value to each
 cats = data[['domainID', 'siteID']]      
 cat_encoder = categorical_encoder(cats,y['taxonID'], train)
 cat_encoder = pd.DataFrame(np.hstack([cats[train],cat_encoder])).drop_duplicates()

@@ -17,7 +17,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.ensemble import StackingClassifier
 from sklearn.ensemble import BaggingClassifier
-from mlxtend.classifier import StackingClassifier
+from mlxtend.classifier import StackingCVClassifier
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.experimental import enable_hist_gradient_boosting 
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -32,48 +32,36 @@ from sklearn.svm import SVC
 
 
 #define models
-rf = RandomForestClassifier(random_state=0, oob_score = True, n_jobs = 2)
+rf = RandomForestClassifier(random_state=0, oob_score = True, n_jobs = 2, 
+                            n_estimators = 500, max_features = 'sqrt', criterion = 'entropy')
 #clf3 = GaussianNB()
 
 #gb = GradientBoostingClassifier( random_state=0)
 #mlp = MLPClassifier(solver='lbfgs',random_state=0)
-gb = HistGradientBoostingClassifier(random_state=0)
-clf = BaggingClassifier(base_estimator=SVC(probability = True), n_jobs = 2, oob_score = True, random_state=0)
-
-
-# #model = SVC()
-# kernel = ['poly', 'rbf', 'sigmoid']
-# C = [50, 10, 1.0, 0.1, 0.01]
-# gamma = ['scale']
-# # define grid search
-# grid = dict(kernel=kernel,C=C,gamma=gamma)
+gb = HistGradientBoostingClassifier(random_state=0, max_iter = 1000, learning_rate = 0.1, 
+                max_depth = 25, loss = 'categorical_crossentropy', l2_regularization = 0.5)
+bsvc = BaggingClassifier(base_estimator=SVC(probability = True), n_jobs = 2, 
+                         oob_score = True, random_state=0)
 
 
 # Initializing models
-clf_bl = StackingClassifier(classifiers = [make_pipeline(StandardScaler(),rf), 
-                                             make_pipeline(StandardScaler(),gb), 
-                                             #make_pipeline(StandardScaler(),mlp),
-                                             make_pipeline(StandardScaler(),clf)],
-                              use_probas=True,
-                          average_probas=False,
-                          meta_classifier= LogisticRegressionCV(max_iter = 10000)) #make_pipeline(StandardScaler(),
+clf_bl = StackingClassifier(classifiers = [make_pipeline(StandardScaler(),rf),  #StackingCVClassifier
+                                             make_pipeline(StandardScaler(),gb)],
+                          use_probas=True,
+                          #average_probas=False,
+                          meta_classifier= LogisticRegressionCV())
 
 params = {
- 'pipeline-2__histgradientboostingclassifier__max_iter': [1000,1500],
- 'pipeline-2__histgradientboostingclassifier__learning_rate': [0.1],
- 'pipeline-2__histgradientboostingclassifier__max_depth': [25, 75],
- 'pipeline-2__histgradientboostingclassifier__l2_regularization': [0,1.5],
- 'pipeline-1__randomforestclassifier__n_estimators': [200, 700],
- 'pipeline-1__randomforestclassifier__max_features': ['auto', 'sqrt', 'log2'],
- 'pipeline-3__baggingclassifier__base_estimator__C': [50, 10, 1.0, 0.1, 0.01],
- 'pipeline-3__baggingclassifier__base_estimator__kernel': ['poly', 'rbf', 'sigmoid'],
- 'pipeline-3__baggingclassifier__max_samples': [0.05, 0.5],
- 'pipeline-3__baggingclassifier__n_estimators': [10,100,300],
- 'meta_classifier__Cs': [0.1, 10], 
+ 'meta_classifier__Cs': [0.1, 5, 10], 
+ 'meta_classifier__max_iter': [10000],
  }
 
+grid = GridSearchCV(estimator=clf_bl, 
+                    param_grid=params, 
+                    cv=3,
+                    refit=True)
+grid.fit(X_res, y_res.taxonID.ravel())
 
-n
 
 clf_bl.fit(X_res, y_res.taxonID.ravel())
 print(clf_bl.score(X_test, y_test['taxonID'].ravel()))
