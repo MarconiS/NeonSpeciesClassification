@@ -54,16 +54,19 @@ def categorical_encoder(cats,y, tr_lb):
     
 siteID =  None #"D01"
 dim_red = None #"pca"
-max_threshold = 250
+max_threshold = 350
 too_rare = False
 
 
-data = pd.read_csv("./weak_label/indir/csv/brdf_hist_6min.csv")
+data = pd.read_csv("./weak_label/indir/csv/brdf_onlytrees_hist.csv")
 #data = pd.read_csv("./weak_label/indir/csv/old_dataset.csv") 
 #data = pd.read_csv("./weak_label/indir/csv/bf2_top_reflectance.csv")
 
 #data = data.drop(columns=['species', 'genus', 'genus_id'])
 #data = pd.read_csv("/Users/sergiomarconi/Documents/Data/NEON/VST/vst_top_bf1_reflectance.csv")
+is_bad_genus = ["ABIES", "BETUL", "FRAXI", "MAGNO", "SALIX", "2PLANT",
+                "OXYDE", "HALES", "PINUS", "QUERC", "PICEA"]
+is_bad_genus =  data['taxonID'].isin(is_bad_genus)
 
 
 if dim_red is 'pca':

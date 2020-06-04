@@ -74,9 +74,11 @@ best_gb = gb.best_params_
 
 
 ### hipertune BC with SVC ####
-bsvc = BaggingClassifier(base_estimator=SVC(probability = True), n_jobs = 2, oob_score = True, random_state=0)
+bsvc = BaggingClassifier(base_estimator=SVC(probability = True), 
+                         n_jobs = 2, random_state=0,
+                         n_estimators=10)
 params = {
- 'baggingclassifier__base_estimator__C': [5, 1.0, 0.1, 0.01],
+ 'baggingclassifier__base_estimator__C': [500, 1000, 1500], #C = 1000
 }
 
 bsvc = GridSearchCV(estimator=make_pipeline(StandardScaler(), bsvc),  
@@ -85,3 +87,39 @@ bsvc = GridSearchCV(estimator=make_pipeline(StandardScaler(), bsvc),
                     refit=True)
 bsvc.fit(X_res, train_y)
 best_bsvc = bsvc.best_params_
+
+### hipertune RFC ####
+mlp = MLPClassifier(random_state=0, learning_rate = 'adaptive')
+params = {'mlpclassifier__solver': ['lbfgs', 'adam'], 
+          #'mlpclassifier__max_iter': [4000], 
+          'mlpclassifier__alpha': [10, 20,50,100], 
+          'mlpclassifier__hidden_layer_sizes': [10,12,15], 
+}
+
+mlp_g = GridSearchCV(estimator=make_pipeline(StandardScaler(), mlp), 
+                    param_grid=params, 
+                    cv=3, 
+                    refit=True)
+mlp_g.fit(X_res, train_y)
+best_mlp = mlp_g.best_params_
+
+from sklearn.neighbors import KNeighborsClassifier
+### hipertune KNN ####
+knn = KNeighborsClassifier(n_jobs = 2)
+params = {
+ 'kneighborsclassifier__weights': ["uniform", "distance"], 
+ 'kneighborsclassifier__n_neighbors': [1,3,7,15,20,30,50],
+ }
+knn_g = GridSearchCV(estimator=make_pipeline(StandardScaler(),knn), 
+                    param_grid=params, 
+                    cv=3,
+                    refit=True)
+
+knn_g.fit(X_res, train_y)
+best_knn = knn_g.best_params_
+
+from sklearn.naive_bayes import GaussianNB
+### hipertune NB ####
+mnb = make_pipeline(StandardScaler(),GaussianNB())
+mnb.fit(X_res, train_y)
+best_mnb = mnb_g.best_params_
