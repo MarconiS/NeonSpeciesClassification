@@ -8,6 +8,7 @@ Created on Wed Jun 10 12:19:44 2020
 
 from shapely.geometry import mapping
 import os
+import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np

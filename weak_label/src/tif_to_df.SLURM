@@ -6,7 +6,7 @@
 #SBATCH --qos=ewhite-b
 
 #SBATCH --cpus-per-task=1            # Number of cores per MPI rank
-#SBATCH --mem=4gb
+#SBATCH --mem=6gb
 
 #SBATCH --time=12:00:00       #Time limit hrs:min:sec
 #SBATCH --output=tif_to_df.out   # Standard output and error log

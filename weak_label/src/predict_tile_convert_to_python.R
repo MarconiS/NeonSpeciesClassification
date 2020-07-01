@@ -78,7 +78,7 @@ hpca_predict <- function(dataset, kld_obj, method = "hist"){
 
 #extract pixels around centroid
 pt = "////orange/idtrees-collab/hsi_brdf_corrected/brdf_to_csv/"
-out_dir= "/ufrc/ewhite/s.marconi/weak_classifiers/pred_indir/"
+out_dir= "//orange/idtrees-collab/hsi_brdf_corrected/species_predictions/"
 tl = list.files(pt, pattern = ".csv")
 for(tile in tl){
   #tile = "GUAN_724000_1987000_brdf_itc.csv"
