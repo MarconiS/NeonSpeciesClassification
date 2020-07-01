@@ -27,11 +27,11 @@ get.micro.f1 <- function(cm) {
   return(f1)
 }
 list_of_species = read_csv("~/Documents/Data/NEON/VST/list_of_species_lifeform.csv")
-pairs = readr::read_csv("./weak_an__upperTrees_final_kld_pairs.csv")
-probabilities = readr::read_csv("./weak_an__upperTrees_final_kld_probabilities.csv")
+pairs = readr::read_csv("./weak_label/mods_out/weak_an__top_of_the_canopy_kld_pairs.csv")
+probabilities = readr::read_csv("./weak_label/mods_out/weak_an__top_of_the_canopy_kld_probabilities.csv")
 tree_species = list_of_species %>% filter(lifeForm %in% c("T"))
 # 
-# colnames(probabilities)[which(probabilities[1,-(1:3)] == max(probabilities[1,-(1:3)]))]
+colnames(probabilities)[which(probabilities[1,-(1:3)] == max(probabilities[1,-(1:3)]))]
 colnames(pairs)=c("id", "individualID", "obs", "pred")
 pairs$domainID = substr(pairs$individualID, 10,12)
 pairs$siteID = substr(pairs$individualID, 14,17)
@@ -47,8 +47,7 @@ vst[vst$taxonID=="PSMEM","taxonID"] = "PSME"
 
 species_per_site = vst %>% filter(taxonID %in% tree_species$taxonID)  
 tot_species = species_per_site %>% select(taxonID, siteID) %>% group_by(siteID) %>% table
-data = read_csv("./weak_label/indir/csv/brdf_T_hist.csv")
-
+data = read_csv("./weak_label/indir/csv/brdf_june5Ttop_hist.csv")
 #want to check how many species out of the total we have in the dataset for each site
 spst = spdt =summary_freqs =  needed_missing = list()
 for(ii in 1:ncol(tot_species)){
@@ -114,3 +113,4 @@ dm$Domain = rownames(dm)
 ggplot(dm, aes(x = Domain, y = entries_per_domain)) + geom_bar(stat="identity") + theme_bw()
 
 cor(dm$sp_per_domain, dm$microF1_dom)
+

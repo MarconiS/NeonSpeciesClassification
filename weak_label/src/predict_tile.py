@@ -6,9 +6,10 @@ Created on Tue Jun  2 09:39:48 2020
 @author: sergiomarconi
 """
 #load model
+tl_nm = sys.argv[1]
 mod = joblib.load('./weak_label/mods/upperTrees_final_model.pkl')
 #make predictions
-tile = pd.read_csv("./weak_label/pred_indir/725000_46960002_image.csv")
+tile = pd.read_csv("./weak_label/pred_indir/"+tl_nm+".csv")
 did = np.unique(tile.domainID)
 tile.domainID = domain_encode[did[0]]
 sid = np.unique(tile.siteID)
@@ -28,4 +29,4 @@ pred_itc = preds.idxmax(axis=1)
 
 pred_itc = pd.concat([eval_an.individualID, pred_itc], axis=1)
 #save prediction
-pred_itc.to_csv("./weak_label/pred_out/taxa_725000_46960002_image.csv")
+pred_itc.to_csv(outdir+tl_nm+"_prediction.csv")
