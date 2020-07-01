@@ -29,7 +29,7 @@ from os.path import isfile, join
 itc_pt = "//orange/idtrees-collab/predictions/"
 brdf_pt = "//orange/idtrees-collab/hsi_brdf_corrected/corrHSI"
 out_pt = "//orange/idtrees-collab/hsi_brdf_corrected/brdf_to_csv"
-tile = sys.args[1]
+tile = sys.argv[1]
     
 itc_path = list(Path(itc_pt).rglob("*.[s][h][p]"))
 itc_path = pd.Series(itc_path).astype('str') 
