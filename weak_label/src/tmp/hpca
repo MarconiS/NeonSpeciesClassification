@@ -1,0 +1,206 @@
+library(reticulate)
+library(tidyverse)
+library(brms)
+dataset = readr::read_csv("./outdir/CFC_june_reflectance.csv")
+#dataset = readr::read_csv("~/Documents/Data/NEON/VST/brdf_full_june2020.csv")
+#upp = dataset[duplicated(dataset[-1]), ]
+colnames(dataset)[1]= "individualID"
+cfc = read_csv("/Users/sergiomarconi/Documents/Data/NEON/CFC/final_dataset_with_itc_0620.csv")
+vst = read_csv("/Users/sergiomarconi/Documents/Data/NEON/VST/vst_field_data.csv")
+onlyTrees = F
+
+clean_spectra <- function(brick){
+  # filter for no data 
+  mask = brick > 10000
+  brick[mask] <-  NA
+  mask = brick == -9999
+  brick[mask] <-  NA
+  
+  #filter for greennes and shadows
+  ndvi <- (brick[,"band_90"]- brick[,"band_58"])/(brick[,"band_58"] + brick[,"band_90"]) <0.3
+  nir860 <- (brick[,"band_96"] + brick[,"band_97"])/2 < 0.1
+  mask = as.logical(ndvi | nir860)
+  mask[is.na(mask)] = T
+  brick[mask,] = NA
+  rm(mask, ndvi, nir860)
+  brick = brick[,15:365]
+  normMat <- sqrt(apply(brick^2,FUN=sum,MAR=1, na.rm=TRUE))
+  normMat <- matrix(data=rep(normMat,ncol(brick)),ncol=ncol(brick))
+  brick=brick/normMat
+  rm(normMat)
+  
+  #filter for known artifacts
+  cnd = (brick[,"band_312"] > 0.03)
+  cnd[is.na(cnd)] = T
+  #idx <- which(apply(cnd, 1, any))
+  brick[cnd,] = NA
+  
+  cnd = (brick[,24:45] > 0.03)
+  idx <- (apply(cnd, 1, any))
+  if(length(idx) !=0){
+    idx[is.na(idx)] = T
+    brick[idx,] = NA
+  }
+  cnd = (brick[,195:200] > 0.043)
+  idx <- (apply(cnd, 1, any))
+  if(length(idx) !=0){
+    idx[is.na(idx)] = T
+    brick[idx,] = NA
+  }
+  rm(cnd,idx)
+  
+  # # save pixel positions
+  good_pix = !is.na(brick)
+  good_pix = (apply(good_pix, 1, all))
+  # 
+  brick = brick[complete.cases(brick),]
+  return(list(refl = brick, good_pix = good_pix))
+}
+
+
+#dataset = readr::read_csv("../NeonSpeciesClassification/dimensionality_reduction/hsi_appended.csv")
+hpca <- function(dataset, npcs = 40, method = "hist"){
+  hsi = dataset %>% dplyr::select(matches("band"))
+  refl =  apply(hsi, 2, scale) 
+  #give the df an array shape
+  #apply kld to clump bands into spectral groups
+  # use_virtualenv("base")
+  # reticulate::source_python("./dimensionality_reduction/hdr.py")
+  # kld_array <- getClusters(((refl)), (npcs))
+  kld_array = read_csv("30_bands_kld.csv", col_names = F) 
+  
+  #perform PCA for each group and select first component
+  grp = cbind.data.frame(kld_array, t(refl))
+  if(method == 'pca'){
+    pcxgrp = kld_refl = list()
+    #loop through groups and create a PCA for each
+    for(gp in unique(kld_array)){
+      pcx = grp %>% dplyr::filter(kld_array == gp) #%>% t %>% prcomp()
+      pcxgrp[[gp]] = pcx[-1]%>% t %>% prcomp()
+      kld_refl[[gp]] = pcxgrp[[gp]]$x[,1]
+    }
+    kld_refl = do.call(cbind.data.frame, kld_refl)
+    colnames(kld_refl) <- paste("kd_", 1:ncol(kld_refl), sep="")
+  }else if( method=='hist'){
+    #get min, max and auc
+    pcxgrp = kld_refl = list()
+    for(gp in unique(kld_array$X1)){
+      pcx = grp %>% dplyr::filter(kld_array == gp) 
+      pcx = pcx[-1]%>% t 
+      min_sband = apply(pcx, 1, min)
+      max_sband = apply(pcx, 1, max)
+      # scale and sum (value-min)/(max-min)
+      pcxgrp[[gp]] = c(min(pcx), max(pcx))
+      # auc_sband = apply(pcx, 1, function(x)(x-min(pcx))/(max(pcx)-min(pcx)))
+      auc_sband =  apply(pcx, 1, mean)
+      auc_sband = cbind(min_sband, max_sband, auc_sband)
+      colnames(auc_sband) = paste(c("min_kl_", "max_kl_", "mean_kl_"), gp, sep="")
+      kld_refl[[gp]] = auc_sband
+    }
+    kld_refl = do.call(cbind.data.frame, kld_refl)
+    metadata = dataset %>% dplyr::select(!(matches("band")))
+    kld_refl = cbind.data.frame(kld_refl, metadata)
+    pcxgrp = do.call(cbind.data.frame, pcxgrp)
+  }
+  return(list(compression = pcxgrp, features = kld_refl, bands_grouping = kld_array))
+}
+
+plot_spectral_groups <- function(spectra, kdgr){
+  #plot reflectances
+  plot_data <- spectra %>% 
+    dplyr::select(contains("band_"))  %>% 
+    #dplyr::select(-one_of("individualID")) %>%
+    t %>%
+    data.frame
+  #colnames(plot_data) = unlist(spectra[1]) # the first row will be the header
+  bnd = 1:nrow(kdgr)
+  plot_data <- cbind.data.frame(kdgr,bnd, plot_data)
+  plot_data$ids2 = plot_data$kdgr
+  ggdat <- tidyr::gather(plot_data, treeID, Reflectance,-c(kdgr, ids2, bnd))
+  g<- ggplot(ggdat, aes(x = bnd, y = Reflectance)) + 
+    geom_point(data=ggdat[,2:5], aes(x=bnd, y=Reflectance, group=ids2), colour="grey", size =0.2) +
+    geom_point(aes(color = factor(kdgr), alpha= 1)) +
+    geom_smooth()+
+    facet_wrap(.~kdgr)+
+    theme_bw()+
+    theme(legend.position="none")
+  g
+  return(g)
+  
+}
+nComp = 20
+colnames(brick)[370] = "individualID"
+#clean and scale dataset
+#apply dimensionality reduction
+cfc_reduced_dims = hpca(brick2, npcs = nComp, method = 'hist')
+
+saveRDS(cfc_reduced_dims, "./weak_label/indir/kld_hist_vst_august.rds")
+# add site, domain, date
+#cfc_reduced_dims = readRDS("./indir/kld_hist_june_30.rds")
+#cfc_data = cbind(dataset[data$good_pix, 1], cfc_reduced_dims$features)
+
+#foo = data$refl %>% head %>% dplyr::select(matches("individualID|band"))
+#plot_spectral_groups(foo, cfc_reduced_dims$bands_grouping)
+
+# reflectance for species classification
+foo <- cbind.data.frame(dataset$individualID[data$good_pix], cfc_reduced_dims$features)
+colnames(foo)[1] <- "individualID"
+#write_csv(foo, "~/Documents/Data/NEON/VST/kld_1b_top_canopy.csv")
+
+metadata =cfc %>% select(individualID, siteID, domainID,  taxonID,
+                          nitrogenPercent, carbonPercent, CNratio, 
+                          extractChlAConc,extractChlBConc, cellulosePercent,
+                          extractCarotConc, ligninPercent,  leafMassPerArea, 
+                          dryMassFraction) %>% unique %>%
+  group_by(individualID) %>%slice(1)
+metadata$individualID = substring(metadata$individualID, 14 )
+
+metadata = vst %>% select(individualID, taxonID, siteID, domainID, stemDiameter, height, elevation) %>% 
+  group_by(individualID) %>% group_by(individualID, taxonID, siteID, domainID) %>%
+  summarize_all(mean.no.nan)
+
+
+metadata = metadata %>% filter(individualID %in% unique(foo$individualID))
+metadata = unique(metadata)
+
+fbf = inner_join(metadata, fbf, by = "individualID") %>% unique
+
+fbf$taxonID[fbf$taxonID=="ABIES"] = NA #"ABBA"
+fbf$taxonID[fbf$taxonID=="ACRUR"] = "ACRU"
+fbf$taxonID[fbf$taxonID=="ACSAS"] = "ACSA3"
+fbf$taxonID[fbf$taxonID=="BEPAP"] = "BEPA"
+fbf$taxonID[fbf$taxonID=="AQUIFOSPP"] = "AQUIFO"
+fbf$taxonID[fbf$taxonID=="AQUIFO"] = NA
+fbf$taxonID[fbf$taxonID=="BETUL"] = NA#"BELE"
+fbf$taxonID[fbf$taxonID=="FRAXI"] = NA#"FRAM"
+fbf$taxonID[fbf$taxonID=="JUNIP"] = "JUVI"
+fbf$taxonID[fbf$taxonID=="MAGNO"] = NA #"MAFR"
+fbf$taxonID[fbf$taxonID=="PSMEM"] = "PSME"
+fbf$taxonID[fbf$taxonID=="QUHE"] = "QUHE2"
+fbf$taxonID[fbf$taxonID=="PRSES"] = "PRSE2"
+fbf$taxonID[fbf$taxonID=="SALIX"] = NA #"SASC"
+fbf$taxonID[fbf$taxonID=="2PLANT"] = NA
+fbf$taxonID[fbf$taxonID=="OXYDE"] = NA 
+fbf$taxonID[fbf$taxonID=="HALES"] = NA 
+fbf$taxonID[fbf$taxonID=="PINUS"] = NA 
+fbf$taxonID[fbf$taxonID=="QUERC"] = NA 
+fbf$taxonID[fbf$taxonID=="PICEA"] = NA 
+fbf$taxonID[fbf$taxonID=="PICOL"] = "PICO" 
+
+
+
+fbf = fbf[complete.cases(fbf),]
+check_species = fbf %>% select(individualID, taxonID) %>% unique
+check_species = check_species$taxonID %>% table %>% data.frame
+colnames(check_species)[1] <- "taxonID"
+check_species = check_species %>% filter(Freq < 5 ) %>% select(taxonID)
+fbf = fbf %>% filter(!taxonID %in% check_species$taxonID)
+
+if(onlyTrees){
+  list_trees = read_csv("~/Documents/Data/NEON/VST/list_of_species_lifeform.csv") %>%
+    filter(lifeForm %in% c("T"))#, "TS"))
+  fbf = fbf %>% filter(taxonID %in% list_trees$taxonID)
+}
+write_csv(fff, "./indir/brdf_18_cfc_june.csv")
+write_csv(fTf, "~/Documents/GitHub/NeonSpeciesClassification/weak_label/indir/csv/brdf_june5Ttop_hist.csv")
+# write_csv(fbf, "~/Documents/GitHub/NeonSpeciesClassification/weak_label/indir/csv/brdf_pca_8min.csv")

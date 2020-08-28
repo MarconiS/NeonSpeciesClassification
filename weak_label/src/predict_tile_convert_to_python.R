@@ -52,7 +52,7 @@ clean_spectra <- function(brick){
 #dataset = readr::read_csv("../NeonSpeciesClassification/dimensionality_reduction/hsi_appended.csv")
 hpca_predict <- function(dataset, kld_obj, method = "hist"){
   hsi = dataset %>% dplyr::select(matches("band"))
-  kld_array <- kld_obj$bands_grouping
+  kld_array <- unlist(kld_obj)
   #perform PCA for each group and select first component
   grp = cbind.data.frame(kld_array, t(hsi))
   if( method=='hist'){
@@ -65,8 +65,9 @@ hpca_predict <- function(dataset, kld_obj, method = "hist"){
       max_sband = apply(pcx, 1, max)
       # scale and sum (value-min)/(max-min)
       pcxgrp =  kld_obj$compression[,gp] #c(min(pcx), max(pcx))
-      auc_sband = apply(pcx, 1, function(x)(x-pcxgrp[1])/(pcxgrp[2]-pcxgrp[1]))
-      auc_sband =  apply(pcx, 1, sum)
+      #auc_sband = apply(pcx, 1, function(x)(x-pcxgrp[1])/(pcxgrp[2]-pcxgrp[1]))
+      #auc_sband =  apply(pcx, 1, sum)
+      auc_sband = apply(pcx, 1, mean)
       auc_sband = cbind(min_sband, max_sband, auc_sband)
       colnames(auc_sband) = paste(c("min_kl_", "max_kl_", "auc_kl_"), gp, sep="")
       kld_refl[[gp]] = auc_sband
@@ -80,6 +81,7 @@ hpca_predict <- function(dataset, kld_obj, method = "hist"){
 pt = "////orange/idtrees-collab/hsi_brdf_corrected/brdf_to_csv/"
 out_dir= "//orange/idtrees-collab/hsi_brdf_corrected/species_predictions/"
 tl = list.files(pt, pattern = ".csv")
+kld_obj = read_csv("./kld_20_grps.csv", col_names = F)
 for(tile in tl){
   #tile = "GUAN_724000_1987000_brdf_itc.csv"
   itcc = readr::read_csv(paste(pt, tile, sep=""))

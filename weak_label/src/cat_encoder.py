@@ -16,6 +16,9 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
+from imblearn.over_sampling import SMOTENC
+from imblearn.over_sampling import ADASYN
+from collections import Counter
 
 # prepare input data
 def prepare_inputs(X_train, X_test, cats = ['domainID', 'siteID']):
@@ -58,8 +61,12 @@ max_threshold = 350
 too_rare = False
 
 
-data = pd.read_csv("./weak_label/indir/csv/brdf_onlytrees_hist.csv")
-#data = pd.read_csv("./weak_label/indir/csv/old_dataset.csv") 
+#data = pd.read_csv("./weak_label/indir/csv/brdf_june5Ttop_hist.csv")
+
+data = pd.read_csv("./weak_label/kld_30_classes.csv") 
+#data = pd.read_csv("./centers_august_30k.csv") 
+data = data.drop(['growthForm', 'stemDiameter','plantStatus', 'canopyPosition', 'nlcdClass','height', 'Easting', 'Northing','itcLongitude','itcLatitude'], axis=1)
+#data = data.drop(['elevation'], axis=1)
 #data = pd.read_csv("./weak_label/indir/csv/bf2_top_reflectance.csv")
 
 #data = data.drop(columns=['species', 'genus', 'genus_id'])
@@ -72,22 +79,25 @@ is_bad_genus =  data['taxonID'].isin(is_bad_genus)
 if dim_red is 'pca':
     #apply dimensionality reduction on data
     pca = PCA(n_components = 40)
-    X = pca.fit_transform(data.drop(columns=['individualID', 'taxonID','siteID','domainID']))
+    X = data.drop(columns=['individualID', 'taxonID','siteID','domainID', 'height', 'area','elevatn'])
     X = pd.DataFrame(X)
-    attr = data[['individualID', 'taxonID','siteID','domainID']]
+    attr = data[['individualID', 'taxonID','siteID','domainID', 'height', 'area','elevatn']]
     data = pd.concat([attr, X], axis=1)
 if dim_red is 'kld':
     import sys
-    sys.path.append("..")
+    sys.path.append("../hsi_toolkit_py")
     from dimensionality_reduction import hdr
-    X = data.drop(columns=['individualID', 'taxonID','siteID','domainID'])
-    X = hdr.dimReduction(X, numBands = 40)
+    X = data.drop(columns=['individualID', 'taxonID','siteID','domainID', 'height', 'area','elevatn'])
+    X = hdr.dimReduction(X, numBands = 20)
     X = pd.DataFrame(X)
-    attr = data[['individualID', 'taxonID','siteID','domainID']]
+    attr = data[['individualID', 'taxonID','siteID','domainID', 'height', 'area','elevatn']]
     data = pd.concat([attr, X], axis=1)
 if too_rare is True:
-    too_rare = ["ACPE", "AIAL", "ALRU2", "CACO15", "CAIL2", "CODI8", "COFL2", 
-                "GUOF", "GYDI", "MORU2", "POGR4", "QULA3", "SASSA", "TIAM"]
+    too_rare =  ["ACFA","ACPE","AMEL","ARVIM","BEAL2","BEPA","BOSU2",
+                 "CAAQ2","CACO15","CAOV3","CODI8","DIVI5","GUOF",
+                 "LELE10","MAFR","NYAQ2","OSVI","PIAC",
+                 "PIVI2","POGR4","PRAV","PRSE2","QUFA","QULA2","QULA3",
+                 "QUPH","QUSH","ROPS","SAAL5","SILA20", "TAHE","TIAM"] 
     is_too_rare =  data['taxonID'].isin(too_rare)
     data = data[~is_too_rare]
 
@@ -109,6 +119,7 @@ train_ids = train_ids.groupby(['siteID', 'taxonID'],
 
 # split train test from individualIDs
 train = data['individualID'].isin(train_ids['individualID'])
+test = data[~data["individualID"].isin(train_ids['individualID'])]
 X_train = data.drop(columns=['individualID', 'taxonID'])[train]
 X_test = data.drop(columns=['individualID', 'taxonID'])[~train]
 y_train =  data[['taxonID']][train]
@@ -129,10 +140,6 @@ domain_encode = cat_encoder.groupby('domainID')['domainE'].mean()
 
 
 # oversample using SMOTENC in order not to loose the categorical effects
-from imblearn.over_sampling import SMOTENC
-from imblearn.over_sampling import ADASYN
-from collections import Counter
-
 #get relatie frequency of each class
 ratios_for_each = Counter(y_train.taxonID)
 ratios_for_each = pd.DataFrame.from_dict(ratios_for_each, orient='index').reset_index()
@@ -185,8 +192,9 @@ y_tmp = pd.concat([y_tmp, y_resampled], axis=0)
 
 min_class = Counter(y_tmp.taxonID)
 min_class = min_class[min(min_class, key=min_class.get)]
-min_class = min(7, min_class)
+min_class = min(8, min_class)
 #oversampling using SMOTE-ENCODER
+#smote_adasym = SMOTENC(random_state=0, categorical_features = [90,91], k_neighbors = min_class-1)
 smote_adasym = SMOTENC(random_state=0, categorical_features = [0,1], k_neighbors = min_class-1)
 X_res, y_res = smote_adasym.fit_resample(x_tmp.to_numpy(), y_tmp.to_numpy().ravel())
 
@@ -226,5 +234,5 @@ tst_nm = y_test.individualID
 tst_nm = np.unique(tst_nm)
 check = np.isin(tst_nm, tr_nm)
 print(sum(check))
-
+check = X_res.columns
 

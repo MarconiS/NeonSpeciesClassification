@@ -1,8 +1,8 @@
 ch = vst %>% select(individualID, taxonID, Easting, Northing) %>% 
   group_by(individualID) %>%slice(1)
 
-ch = ch %>% filter(individualID %in% metadata$individualID)
-dist_e = dist(ch$Easting) %>% as.matrix
+ch = ch %>% filter(individualID %in% unique(brick2$individualID))
+dist_e = dist(as.integer(ch$Easting)) %>% as.matrix
 dist_n = dist(ch$Northing) %>% as.matrix
 very_close = (dist_e <2) & (dist_n < 2)
 pairs_mat = matrix(T, nrow = nrow(dist_e), ncol = ncol(dist_e))
@@ -22,4 +22,10 @@ for(ii in 1:nrow(paired)){
 }
 foo = get_confused[!!which_confused]
 ids_too_mixed = ch$individualID[!!which_confused] %>% unique
-fbf = fbf %>% filter(!individualID %in% ids_too_mixed)
+fbf = brick2 %>% filter(!individualID %in% ids_too_mixed)
+taxa_missing = c("SWMA2","PIRU", "QUCH", "PIRU", "PSMEM","PIJE","BEGL/BENA")
+fbrdf = fbf %>% filter(canopyPosition %in% unique(fbf$canopyPosition)[c(1,2,5)])
+fbrdf2 = fbf %>% filter(is.na(canopyPosition)) %>% filter(taxonID %in% taxa_missing)
+fbrdf = rbind.data.frame(fbrdf, fbrdf2)
+
+write_csv(fbrdf, "~/Documents/Data/brdf_partial_dataset.csv")
