@@ -8,11 +8,11 @@ dist_sp = pdist_wrong %>% select(-one_of("X1", "individualID")) %>% group_by(tax
 dist_sp = reshape2::melt(dist_sp)
 ggplot(dist_sp, aes(x = variable, y = value)) + geom_point() + facet_wrap(.~taxonID)
 
-highish = dist_sp %>% filter(value > 0.25)
+highish = dist_sp %>% filter(value > 0.01)
 highish = highish[!highish$taxonID == highish$variable,]
 
 ggplot(highish, aes(x = as.character(variable), y = value)) + geom_point() + ylim(0,1)+
-  facet_wrap(.~taxonID, drop = T, scales = "free_x") + theme_bw()
+  facet_wrap(.~taxonID, drop = T, scales = "free_x") + theme_bw() + geom_hline(yintercept = 0.1)
 
 
 # make a quantitative analysis using ranking

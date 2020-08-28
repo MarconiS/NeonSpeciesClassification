@@ -29,7 +29,7 @@ get.micro.f1 <- function(cm) {
 list_of_species = read_csv("~/Documents/Data/Surveys/VST/list_of_species_lifeform.csv")
 pairs = readr::read_csv("./weak_label/mods/weak_an__final80_kld_pairs.csv")
 probabilities = readr::read_csv("./weak_label/mods/weak_an__final80_kld_probabilities.csv")
-tree_species = list_of_species %>% filter(lifeForm %in% c("T"))
+tree_species = list_of_species %>% filter(lifeForm %in% c("T", "TS"))
 # 
 # colnames(probabilities)[which(probabilities[1,-(1:3)] == max(probabilities[1,-(1:3)]))]
 colnames(pairs)=c("id", "individualID", "obs", "pred")
@@ -40,7 +40,8 @@ sp_in_dat = pairs$obs %>% data.frame
 colnames(sp_in_dat) = "taxonID"
 life_forms = inner_join(sp_in_dat, list_of_species)
 
-vst = readr::read_csv("~/Documents/Data/NEON/VST/vst_field_data.csv")
+vst = readr::read_csv("~/Documents/Data/Surveys/VST/vst_field_data.csv")
+
 vst = vst %>% group_by(individualID) %>% slice(1) %>% ungroup
 vst = vst %>% filter(siteID %in% unique(pairs$siteID))
 vst[vst$taxonID=="PSMEM","taxonID"] = "PSME"
@@ -52,8 +53,8 @@ vst[vst$taxonID=="JUNIP","taxonID"] = "JUVI"
 vst[vst$taxonID=="QUHE","taxonID"] = "QUHE2"
 vst[vst$taxonID=="PRSES","taxonID"] = "PRSE2"
 vst[vst$taxonID=="PICOL","taxonID"] = "PICO" 
-species_per_site = vst %>% filter(taxonID %in% tree_species$taxonID)  
-tot_species = species_per_site %>% select(taxonID, siteID) %>% group_by(siteID) %>% table
+species_per_site = vst %>% filter(taxonID %in% tree_species$taxonID) 
+tot_species = species_per_site %>% select(taxonID, siteID)  %>% group_by(siteID) %>% table
 data = read_csv("./weak_label/indir/csv/test_plus_2020_brdf_centers.csv")
 
 #want to check how many species out of the total we have in the dataset for each site
@@ -128,8 +129,8 @@ for(dm in unique(pairs$siteID)){
   cm[[dm]] = cmdm
 }
 microF1_site= unlist(microF1)
-names(microF1_site) = c("BART", "HARV", "BLAN", "SCBI", "SERC", "DSNY", "OSBS", "GUAN", "STEI", "TREE",
-                           "KONZ", "UKFS", "GRSM", "MLBS", "DELA", "LENO", "CLBJ", "NIWO", "ABBY", "SOAP", "TEAK",
+names(microF1_site) = c("BART", "HARV", "SCBI", "SERC", "DSNY", "OSBS", "GUAN", "STEI", 
+                           "KONZ", "UKFS", "GRSM", "MLBS", "DELA", "LENO", "CLBJ", "NIWO", "SRER", "ABBY", "SOAP", "TEAK",
                            "BONA", "DEJU", "HEAL")
 
 site_pairs = pairs %>% group_by(siteID) %>% select(obs) %>% table 
@@ -157,25 +158,27 @@ sp_per_site = sp_per_site[order(names(sp_per_site))]
 entries_per_site = entries_per_site[order(names(entries_per_site))]
 taxa = names(entries_per_site)
 sp_res = cbind.data.frame(microF1_site, sp_per_site, entries_per_site, taxa)
-colnames(sp_res) = c("microF1", "alpha", "effort", "siteID")
-
+colnames(sp_res) = c("accuracy", "alpha", "effort", "siteID")
+library(randomcoloR)
 rcol = distinctColorPalette(k = nrow(sp_res), altCol = FALSE, runTsne = FALSE)
-ggplot(sp_res, aes(y = microF1, x =  alpha) ) + geom_point(aes(color = siteID)) + 
-  geom_text(aes(label=siteID)) + theme_bw() +
-  scale_color_manual(values = rcol)+ ylim(0,1)+  xlim(-2,22)+
-  geom_smooth(method = "gam", formula = y ~ log(x)) + geom_hline(yintercept = 0.74)
+ggplot(sp_res, aes(y = accuracy, x =  alpha) ) + geom_point(aes(color = siteID)) + 
+  theme_bw() +
+  scale_color_manual(values = rcol)+ ylim(0,1)+  xlim(0,18)+
+  geom_smooth(method = "gam", formula = y ~ log(x)) + geom_text(aes(label=siteID), position=position_jitter()) + 
+  geom_hline(yintercept = 0.76)
 
 
 names(microF1_dom) <- c("D01", "D02", "D03", "D04", "D05", 
-                          "D06", "D07", "D08", "D11", "D13", "D16", "D17", "D19")
+                          "D06", "D07", "D08", "D11", "D13","D14", "D16", "D17", "D19")
 microDom = cbind.data.frame(microF1_dom, names(microF1_dom))
+colnames(microDom) = c("accuracy", "domainID")
 microF1_dom = microF1_dom[order(names(microF1_dom))]
 
-ggplot(microDom, aes(y = microF1, x = factor(domainID))) + 
+ggplot(microDom, aes(y = accuracy, x = factor(domainID))) + 
   geom_bar(stat="identity",aes(fill = domainID)) +  
   theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) +
   scale_fill_manual(values = rcol)+ ylim(0,1)+
-  geom_hline(yintercept = 0.74)
+  geom_hline(yintercept = 0.76)
 
 
 sp_per_domain = sp_per_domain[order(names(sp_per_domain))]
@@ -195,15 +198,24 @@ p_unc = p_unc[order(p_unc$`p(x)`),]
 p_unc["id"] = 1: nrow(p_unc)
 ggplot(p_unc, aes(x = detected, y = `p(x)`, fill = detected))+geom_boxplot() + theme_bw()
 
-f1_by_class = data.frame(cmdm$byClass)
-rspcol = distinctColorPalette(k = nrow(f1_by_class), altCol = FALSE, runTsne = FALSE)
+dm_dt = pairs
+dm_dt$obs = factor(dm_dt$obs, levels = unique(data$taxonID))
+dm_dt$pred = factor(dm_dt$pred, levels = unique(data$taxonID))
+cmdm = confusionMatrix(dm_dt$obs, dm_dt$pred)
 
-ggplot(f1_by_class, aes(x = detected, y = `p(x)`, fill = detected))+geom_point() + theme_bw()
+f1_by_class = data.frame(cmdm$byClass)
+#ggplot(f1_by_class, aes(x = detected, y = `p(x)`, fill = detected))+geom_point() + theme_bw()
 f1_by_class$species = rownames(f1_by_class)
-ggplot(f1_by_class, aes(y = F1, x = (species))) + geom_point()+
-  theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) +
-  scale_fill_manual(values = rcol)+ ylim(0,1)+
-  geom_hline(yintercept = 0.74)
+ggplot(f1_by_class, aes(y = F1, x = species, color=Prevalence)) + geom_point()+ #scale_color_viridis_c()+
+  theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) + ylim(0,1)+coord_flip()
+#precision
+ggplot(f1_by_class, aes(y = Precision, x = species, color=Prevalence)) + geom_point()+ #scale_color_viridis_c()+
+  theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) + ylim(0,1)+coord_flip()
+#recall
+ggplot(f1_by_class, aes(y = Recall, x = species, color=Prevalence)) + geom_point()+ #scale_color_viridis_c()+
+  theme_bw() + theme(axis.text.x = element_text(size=14, angle=45, hjust=1, vjust=1)) + ylim(0,1)+coord_flip()+
+  geom_hline(yintercept = 0.76)
+
 
 bad_sp = f1_by_class %>% filter(F1 < 0.4)
 cmdm$table[,rownames(cmdm$table) == "CATO6"]
@@ -216,8 +228,8 @@ hm <- hm %>%
 
 ggplot(hm, aes(x=Prediction, y=Reference, fill=Freq)) +
   geom_tile() + theme_bw() + coord_equal() +
-  theme(axis.text.x = element_text(size=5, angle=45, hjust=1, vjust=1)) +
-  theme(axis.text.y = element_text(size=5, angle=45, hjust=1, vjust=1)) +
+  theme(axis.text.x = element_text(size=8, angle=45, hjust=1, vjust=1)) +
+  theme(axis.text.y = element_text(size=8, angle=45, hjust=1, vjust=1)) +
   scale_fill_distiller(palette="Greens", direction=1) +
   guides(fill=F) + # removing legend for `fill`
   labs(title = "Value distribution") + # using a title instead

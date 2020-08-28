@@ -9,3 +9,11 @@
 outdir/.DS_Store
 outdir/crops/hsi/.DS_Store
 *.csv
+*.pyc
+*.rds
+weak_label/indir/.DS_Store
+*.pkl
+*.dbf
+*.prj
+*.shp
+*.shx

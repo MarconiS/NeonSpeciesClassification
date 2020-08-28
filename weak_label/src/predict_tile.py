@@ -192,13 +192,16 @@ def preprocess_df(df):
 #tl_nm = "/orange/idtrees-collab/hsi_brdf_corrected/corrHSI/NEON_D13_NIWO_DP3_448000_4430000_reflectance.tif"  
 #load model
 tl_nm = sys.argv[1]
-mod = joblib.load('./weak_label/mods/old_data_model.pkl')
-domain_encode = pd.read_csv('./weak_label/mods/domain_encode__old_data.csv')
-site_encode = pd.read_csv('./weak_label/mods/site_encode__old_data.csv')
-taxa_classes = pd.read_csv('./weak_label/mods/taxonID_dict__old_data.csv')
-outdir = "./weak_label/pred_out/predictions_csv/"
+mod = joblib.load('./weak_label/mods/final80_model.pkl')
+domain_encode = pd.read_csv('./weak_label/mods/domain_encode__final80.csv')
+site_encode = pd.read_csv('./weak_label/mods/site_encode__final80.csv')
+taxa_classes = pd.read_csv('./weak_label/mods/taxonID_dict__final80.csv')
+outdir = "/orange/idtrees-collab/species_classification/"
 #make predictions
 tile = preprocess_tile(tl_nm) #"./pred_indir/"+"HARV_732000_4713000__brdf_itc.csv")
+tileID = tl_nm.split("/")[-1]
+tile.to_csv(outdir+'/raw_csv/'+tileID[0:-4]+"_df.csv")
+
 did = np.unique(tile.domainID)
 did = domain_encode[domain_encode['domainID']==did[0]]
 tile.domainID = did.domainE.iloc[0]
@@ -206,20 +209,38 @@ sid = np.unique(tile.siteID)
 sid = site_encode[site_encode['siteID']==sid[0]]
 tile['siteID'] = sid.siteE.iloc[0]
 individualID = tile["individualID"]
-tile_x = tile.drop(columns=["individualID"])
-predict_tile = mod.predict_proba(tile_x)
+tile = tile.drop(columns=["individualID"])
+predict_tile = mod.predict_proba(tile)
 predict_tile = pd.DataFrame(predict_tile)
-eval_an = pd.concat([individualID, predict_tile], axis=1)
-eval_an = eval_an.groupby(['individualID'], as_index=False).mean()
+del(tile)
+predict_tile = pd.concat([individualID, predict_tile], axis=1)
+#save prediction
+predict_tile.to_csv(outdir+'/tile_preds_csv/'+tileID[0:-4]+"tile_prediction.csv", index=False)
 
+#append to deepForest predictions
+eval_an = predict_tile.groupby(['individualID'], as_index=False).mean()
+del(predict_tile)
 # get the column name of max values in every row
 taxa_classes
-eval_an.columns =  np.append(['individualID'], taxa_classes)
+eval_an.columns =  np.append(['individualID'], taxa_classes.iloc[:,1])
 preds = eval_an.drop(columns=['individualID'])
 probmax = np.apply_along_axis(max, 1, preds)
 pred_itc = preds.idxmax(axis=1)
+pred_itc = pd.concat([eval_an['individualID'], pred_itc, pd.Series(probmax)], axis=1)
 
-pred_itc = pd.concat([eval_an.individualID, pred_itc, probmax], axis=1)
-#save prediction
-tileID = tl_nm.split("/")[-1]
-pred_itc.to_csv(outdir+tileID[0:-4]+"_prediction.csv")
+#link to geopandas
+import geopandas as gpd
+import glob
+#add metadata: boxes ids
+box_tile = tileID.split("_")
+box_tile = box_tile[2]+"*"+box_tile[4]+"_"+box_tile[5]+"_image.shp"
+box_tile = glob.glob('/orange/idtrees-collab/predictions/*'+box_tile, recursive = False)
+pred_itc = pred_itc.rename(columns={0: 'taxonID', 1: 'probability'})
+if len(box_tile) is 0:
+    pred_itc.to_csv(outdir+'/predictions_csv/'+tileID[0:-4]+"_itc_prediction.csv", index=False)
+else:
+    boxes = gpd.read_file(box_tile[0])
+    boxes['individualID']=boxes.index
+    boxes = boxes.merge(pred_itc, on='individualID')
+    boxes.to_csv(outdir+'/predictions_csv/'+tileID[0:-4]+"_itc_prediction.csv", index=False)
+

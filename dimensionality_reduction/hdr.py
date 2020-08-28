@@ -27,12 +27,12 @@ class dimReductionParameters():
         #self.numBands = 7  # Reduced dimensionality Size
         self.type = 'complete'  # Type of hierarchical clustering used
         self.showH = 0  # Set to 1 to show clustering, 0 otherwise
-        self.NumCenters = 369.  # Number of centers used in computing KL-divergence
+        self.NumCenters = 367.  # Number of centers used in computing KL-divergence
         self.convFactor = 1. # conversion factor for NEON AOP data
 
 def dimReduction(img, numBands = 7, Parameters=None):
 
-    if img.shape[1] is 351 or 369:
+    if img.shape[1] is 351 or 367:
         numCols = 1
         numRows, numDims = img.shape
     else:
@@ -103,13 +103,8 @@ def computeKLDivergencesBetweenBands(InputData, NumCenters, convFactor):
 def getClusters(InputData, numBands = 7, Parameters=None):
 
     #numRows, numCols, numDims = InputData.shape
-    if InputData.shape[1] is 351 or 369:
-        numCols = 1
-        numRows, numDims = InputData.shape
-    else:
-        numRows, numCols, numDims = InputData.shape
-
-
+    numCols = 1
+    numRows, numDims = InputData.shape
 
     if Parameters is None:
         Parameters = dimReductionParameters()
@@ -129,3 +124,7 @@ def getClusters(InputData, numBands = 7, Parameters=None):
     band_clusters = sch.fcluster(Hierarchy, t=maxNumClusters, criterion='maxclust')
 
     return(band_clusters)
+
+# InputData = pd.read_csv("foo_kld.csv")
+# kld_grp = getClusters(InputData, numBands = 20)
+# pd.DataFrame(kld_grp, columns=['_kld_grp']).to_csv("./dimensionality_reduction/kld_30_grps.csv", index=False)
