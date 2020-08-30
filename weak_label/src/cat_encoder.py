@@ -63,7 +63,7 @@ too_rare = False
 
 #data = pd.read_csv("./weak_label/indir/csv/brdf_june5Ttop_hist.csv")
 
-data = pd.read_csv("./weak_label/kld_30_classes.csv") 
+data = pd.read_csv("./weak_label/test_plus_30_classes.csv") 
 #data = pd.read_csv("./centers_august_30k.csv") 
 data = data.drop(['growthForm', 'stemDiameter','plantStatus', 'canopyPosition', 'nlcdClass','height', 'Easting', 'Northing','itcLongitude','itcLatitude'], axis=1)
 #data = data.drop(['elevation'], axis=1)
@@ -116,7 +116,7 @@ train_ids = train_ids.groupby(['siteID', 'taxonID'],
                   group_keys=False).apply(lambda x: x.sample(int(len(x)/ 2)+1,
                                           random_state=1))
 #embedd/encode categorical data
-
+train_ids.to_csv("./weak_label/indir/train_ids.csv")
 # split train test from individualIDs
 train = data['individualID'].isin(train_ids['individualID'])
 test = data[~data["individualID"].isin(train_ids['individualID'])]
@@ -124,6 +124,7 @@ X_train = data.drop(columns=['individualID', 'taxonID'])[train]
 X_test = data.drop(columns=['individualID', 'taxonID'])[~train]
 y_train =  data[['taxonID']][train]
 y_test =  data[['individualID','taxonID']][~train]
+y_test.to_csv("./weak_label/indir/y_test.csv")
 
 y = data[['taxonID']]
 

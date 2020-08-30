@@ -28,6 +28,7 @@ get.micro.f1 <- function(cm) {
 }
 list_of_species = read_csv("~/Documents/Data/Surveys/VST/list_of_species_lifeform.csv")
 pairs = readr::read_csv("./weak_label/mods/weak_an__final80_kld_pairs.csv")
+pairs = readr::read_csv("./weak_an__final80_family_predictions.csv")
 probabilities = readr::read_csv("./weak_label/mods/weak_an__final80_kld_probabilities.csv")
 tree_species = list_of_species %>% filter(lifeForm %in% c("T", "TS"))
 # 

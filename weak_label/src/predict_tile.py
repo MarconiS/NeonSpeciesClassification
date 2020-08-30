@@ -196,7 +196,7 @@ mod = joblib.load('./weak_label/mods/final80_model.pkl')
 domain_encode = pd.read_csv('./weak_label/mods/domain_encode__final80.csv')
 site_encode = pd.read_csv('./weak_label/mods/site_encode__final80.csv')
 taxa_classes = pd.read_csv('./weak_label/mods/taxonID_dict__final80.csv')
-outdir = "/orange/idtrees-collab/species_classification/"
+outdir = "/orange/ewhite/s.marconi/crownMaps/"
 #make predictions
 tile = preprocess_tile(tl_nm) #"./pred_indir/"+"HARV_732000_4713000__brdf_itc.csv")
 tileID = tl_nm.split("/")[-1]
@@ -236,11 +236,11 @@ box_tile = tileID.split("_")
 box_tile = box_tile[2]+"*"+box_tile[4]+"_"+box_tile[5]+"_image.shp"
 box_tile = glob.glob('/orange/idtrees-collab/predictions/*'+box_tile, recursive = False)
 pred_itc = pred_itc.rename(columns={0: 'taxonID', 1: 'probability'})
-if len(box_tile) is 0:
-    pred_itc.to_csv(outdir+'/predictions_csv/'+tileID[0:-4]+"_itc_prediction.csv", index=False)
-else:
-    boxes = gpd.read_file(box_tile[0])
-    boxes['individualID']=boxes.index
-    boxes = boxes.merge(pred_itc, on='individualID')
-    boxes.to_csv(outdir+'/predictions_csv/'+tileID[0:-4]+"_itc_prediction.csv", index=False)
+#if len(box_tile) is 0:
+pred_itc.to_csv(outdir+'/predictions_csv/'+tileID[0:-4]+"_itc_prediction.csv", index=False)
+#else:
+boxes = gpd.read_file(box_tile[0])
+boxes['individualID']=boxes.index
+boxes = boxes.merge(pred_itc, on='individualID')
+boxes.to_csv(outdir+'/predictions_csv/'+tileID[0:-4]+"_itc_prediction.csv", index=False)
 

@@ -134,7 +134,9 @@ for ii in range(len(pred_itc)):
 rep_fam = classification_report(obs, pred, output_dict=True)
 rep_fam = pd.DataFrame(rep_fam).transpose()
 rep_fam 
-    
+test_families = pd.concat([pd.Series(obs), pd.Series(pred)], axis=1) 
+test_families = test_families.rename(columns={0: "observed", 1: "predicted"})
+test_families.to_csv("./weak_an_"+"_"+siteID+"_"+"family_predictions.csv")   
 cm_fam = confusion_matrix(obs, pred)
 cm_fam = pd.DataFrame(cm_fam, columns = rep_fam.index[0:-3], index = rep_fam.index[0:-3])
 
